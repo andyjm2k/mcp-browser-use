@@ -202,6 +202,23 @@ class TaskStore:
                 rows = await cursor.fetchall()
                 return [self._row_to_task(row) for row in rows]
 
+    async def get_running_tasks_for_session(self, session_id: str) -> list[TaskRecord]:
+        """Get running tasks created by a specific server session."""
+        await self.initialize()
+
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM tasks
+                WHERE status = ? AND session_id = ?
+                ORDER BY created_at DESC
+            """,
+                (TaskStatus.RUNNING.value, session_id),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [self._row_to_task(row) for row in rows]
+
     async def get_task_history(
         self,
         limit: int = 100,
@@ -292,6 +309,40 @@ class TaskStore:
                 WHERE created_at < ? AND status IN (?, ?, ?)
             """,
                 (cutoff, TaskStatus.COMPLETED.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value),
+            )
+            await db.commit()
+            return cursor.rowcount
+
+    async def reconcile_incomplete_tasks(
+        self,
+        active_session_id: str,
+        error_message: str = "Task was interrupted because the server session ended before completion.",
+    ) -> int:
+        """Mark orphaned pending/running tasks from older server sessions as failed.
+
+        Tasks from prior server sessions cannot still be executing after a restart, so
+        they should not continue to appear as running forever.
+        """
+        await self.initialize()
+
+        now = datetime.now(UTC).isoformat()
+
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                """
+                UPDATE tasks
+                SET status = ?, completed_at = ?, error = COALESCE(error, ?)
+                WHERE status IN (?, ?)
+                  AND (session_id IS NULL OR session_id != ?)
+            """,
+                (
+                    TaskStatus.FAILED.value,
+                    now,
+                    error_message[:2000],
+                    TaskStatus.PENDING.value,
+                    TaskStatus.RUNNING.value,
+                    active_session_id,
+                ),
             )
             await db.commit()
             return cursor.rowcount

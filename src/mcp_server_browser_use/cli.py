@@ -46,6 +46,7 @@ app = typer.Typer(
     no_args_is_help=False,  # Show deprecation message instead of help
 )
 console = Console()
+_FORCE_KILL_SIGNAL = getattr(signal, "SIGKILL", signal.SIGTERM)
 
 
 def _read_server_info() -> dict | None:
@@ -58,17 +59,39 @@ def _read_server_info() -> dict | None:
         required = {"pid", "host", "port", "transport"}
         if not required.issubset(info.keys()):
             return None
+        info["pid"] = int(info["pid"])
+        info["port"] = int(info["port"])
+        if info["pid"] <= 0 or info["port"] <= 0:
+            return None
+        if not isinstance(info["host"], str) or not isinstance(info["transport"], str):
+            return None
         return info
-    except (json.JSONDecodeError, OSError):
+    except (TypeError, ValueError, json.JSONDecodeError, OSError):
         return None
 
 
 def _is_process_running(pid: int) -> bool:
     """Check if a process with given PID is running."""
     try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+
+    if pid <= 0:
+        return False
+
+    # Prefer psutil on Windows: os.kill(pid, 0) can raise WinError 87 / SystemError.
+    try:
+        import psutil
+
+        return psutil.pid_exists(pid)
+    except Exception:
+        pass
+
+    try:
         os.kill(pid, 0)
         return True
-    except OSError:
+    except (OSError, SystemError, TypeError, ValueError):
         return False
 
 
@@ -191,7 +214,7 @@ def stop() -> None:
         else:
             # Force kill if still running
             console.print("[yellow]Forcing shutdown...[/yellow]")
-            os.kill(pid, signal.SIGKILL)
+            os.kill(pid, _FORCE_KILL_SIGNAL)
     except OSError as e:
         console.print(f"[red]Failed to stop server: {e}[/red]")
         raise typer.Exit(1)

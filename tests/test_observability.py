@@ -161,6 +161,20 @@ class TestTaskStore:
         assert len(running) == 2
         assert all(t.status == TaskStatus.RUNNING for t in running)
 
+    async def test_get_running_tasks_for_session(self, task_store):
+        """Test filtering running tasks by server session."""
+        records = [
+            TaskRecord(task_id="session-a-running", tool_name="test", status=TaskStatus.RUNNING, session_id="session-a"),
+            TaskRecord(task_id="session-b-running", tool_name="test", status=TaskStatus.RUNNING, session_id="session-b"),
+            TaskRecord(task_id="session-a-completed", tool_name="test", status=TaskStatus.COMPLETED, session_id="session-a"),
+        ]
+        for record in records:
+            await task_store.create_task(record)
+
+        running = await task_store.get_running_tasks_for_session("session-a")
+        assert len(running) == 1
+        assert running[0].task_id == "session-a-running"
+
     async def test_get_task_history(self, task_store):
         """Test getting task history with filters."""
         # Create tasks with different tools
@@ -244,6 +258,36 @@ class TestTaskStore:
         assert "old-task" not in task_ids
         assert "recent-task" in task_ids
         assert "old-running" in task_ids  # Running tasks not deleted
+
+    async def test_reconcile_incomplete_tasks_marks_old_sessions_failed(self, task_store):
+        """Old pending/running tasks from prior sessions should not survive a restart."""
+        records = [
+            TaskRecord(task_id="old-running", tool_name="test", status=TaskStatus.RUNNING, session_id="old-session"),
+            TaskRecord(task_id="old-pending", tool_name="test", status=TaskStatus.PENDING, session_id="old-session"),
+            TaskRecord(task_id="current-running", tool_name="test", status=TaskStatus.RUNNING, session_id="current-session"),
+            TaskRecord(task_id="completed", tool_name="test", status=TaskStatus.COMPLETED, session_id="old-session"),
+            TaskRecord(task_id="legacy-running", tool_name="test", status=TaskStatus.RUNNING, session_id=None),
+        ]
+        for record in records:
+            await task_store.create_task(record)
+
+        reconciled = await task_store.reconcile_incomplete_tasks("current-session", error_message="stale task")
+
+        assert reconciled == 3
+
+        old_running = await task_store.get_task("old-running")
+        old_pending = await task_store.get_task("old-pending")
+        current_running = await task_store.get_task("current-running")
+        completed = await task_store.get_task("completed")
+        legacy_running = await task_store.get_task("legacy-running")
+
+        assert old_running.status == TaskStatus.FAILED
+        assert old_running.completed_at is not None
+        assert old_running.error == "stale task"
+        assert old_pending.status == TaskStatus.FAILED
+        assert legacy_running.status == TaskStatus.FAILED
+        assert current_running.status == TaskStatus.RUNNING
+        assert completed.status == TaskStatus.COMPLETED
 
     async def test_result_truncation(self, task_store):
         """Test that very long results are truncated."""

@@ -22,9 +22,13 @@ from browser_use.llm.openrouter.chat import ChatOpenRouter
 
 from .config import NO_KEY_PROVIDERS, STANDARD_ENV_VAR_NAMES
 from .exceptions import LLMProviderError
+from .llm_openai_compat import SanitizingChatOpenAI
 
 if TYPE_CHECKING:
     from browser_use.llm.base import BaseChatModel
+
+
+MINIMAX_BASE_URL = "https://api.minimax.io/v1"
 
 
 def get_llm(
@@ -36,8 +40,9 @@ def get_llm(
 ) -> "BaseChatModel":
     """Create LLM instance using browser-use native providers.
 
-    Supports 12 providers:
+    Supports 13 providers:
     - openai: OpenAI GPT models
+    - minimax: MiniMax models via the OpenAI-compatible API
     - anthropic: Claude models
     - google: Gemini models
     - azure_openai: Azure-hosted OpenAI models
@@ -76,6 +81,9 @@ def get_llm(
         match provider:
             case "openai":
                 return ChatOpenAI(model=model, api_key=api_key, base_url=base_url)
+
+            case "minimax":
+                return SanitizingChatOpenAI(model=model, api_key=api_key, base_url=base_url or MINIMAX_BASE_URL)
 
             case "anthropic":
                 return ChatAnthropic(model=model, api_key=api_key)

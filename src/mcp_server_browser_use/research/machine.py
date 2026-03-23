@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional
 
 from browser_use import Agent, BrowserProfile
 
+from ..config import settings
 from .models import ResearchSource, SearchResult
 from .prompts import (
     PLANNING_SYSTEM_PROMPT,
@@ -154,6 +155,7 @@ End your response with: DONE"""
                 task=search_prompt,
                 llm=self.llm,
                 browser_profile=self.browser_profile,
+                use_vision=settings.agent.use_vision,
                 max_steps=15,
             )
 

@@ -18,6 +18,7 @@ class TestStandardEnvVarNames:
         """All providers that need keys should have standard names defined."""
         expected_providers = {
             "openai",
+            "minimax",
             "anthropic",
             "google",
             "azure_openai",
@@ -115,6 +116,23 @@ class TestApiKeyResolution:
         assert settings.get_api_key_for_provider() == "sk-ant-test"
         assert settings.requires_api_key()
 
+    def test_minimax_standard_key(self, monkeypatch):
+        """MiniMax should work with MINIMAX_API_KEY."""
+        monkeypatch.setenv("MINIMAX_API_KEY", "minimax-test-key")
+        monkeypatch.setenv("MCP_LLM_PROVIDER", "minimax")
+
+        settings = LLMSettings()
+        assert settings.get_api_key_for_provider() == "minimax-test-key"
+        assert settings.requires_api_key()
+
+    def test_minimax_openai_key_fallback(self, monkeypatch):
+        """MiniMax should fall back to OPENAI_API_KEY for OpenAI-compatible setups."""
+        monkeypatch.setenv("OPENAI_API_KEY", "openai-test-key")
+        monkeypatch.setenv("MCP_LLM_PROVIDER", "minimax")
+
+        settings = LLMSettings()
+        assert settings.get_api_key_for_provider() == "openai-test-key"
+
     def test_google_standard_key(self, monkeypatch):
         """Google should work with GOOGLE_API_KEY."""
         monkeypatch.setenv("GOOGLE_API_KEY", "google-test-key")
@@ -194,6 +212,7 @@ class TestProviderTypeValidation:
         """All valid providers should be accepted."""
         valid_providers = [
             "openai",
+            "minimax",
             "anthropic",
             "google",
             "azure_openai",

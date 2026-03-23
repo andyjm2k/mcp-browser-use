@@ -166,7 +166,7 @@ mcp-server-browser-use config set -k agent.max_steps -v 30
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `llm.provider` | `google` | LLM provider (anthropic, openai, google, azure_openai, groq, deepseek, cerebras, ollama, bedrock, browser_use, openrouter, vercel) |
+| `llm.provider` | `google` | LLM provider (anthropic, openai, minimax, google, azure_openai, groq, deepseek, cerebras, ollama, bedrock, browser_use, openrouter, vercel) |
 | `llm.model_name` | `gemini-3-flash-preview` | Model for the browser agent |
 | `llm.api_key` | - | API key for the provider (prefer env vars: GEMINI_API_KEY, ANTHROPIC_API_KEY, etc.) |
 | `browser.headless` | `true` | Run browser without GUI |
@@ -801,7 +801,7 @@ src/mcp_server_browser_use/
 ├── server.py            # FastMCP server + MCP tools
 ├── cli.py               # Typer CLI for daemon management
 ├── config.py            # Pydantic settings
-├── providers.py         # LLM factory (12 providers)
+├── providers.py         # LLM factory (13 providers)
 │
 ├── observability/       # Task tracking
 │   ├── models.py        # TaskRecord, TaskStatus, TaskStage
@@ -834,6 +834,7 @@ src/mcp_server_browser_use/
 ### Supported LLM Providers
 
 - OpenAI
+- MiniMax (OpenAI-compatible)
 - Anthropic
 - Google Gemini
 - Azure OpenAI

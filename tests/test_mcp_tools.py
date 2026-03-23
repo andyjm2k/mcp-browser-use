@@ -1,6 +1,7 @@
 """Tests for MCP server tools using FastMCP in-memory testing."""
 
 from collections.abc import AsyncGenerator
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -179,6 +180,50 @@ class TestRunBrowserAgent:
             # Verify Agent was called with max_steps=5
             call_kwargs = agent_class.call_args[1]
             assert call_kwargs["max_steps"] == 5
+
+    @pytest.mark.anyio
+    async def test_run_browser_agent_passes_use_vision_setting(self, client: Client):
+        """Should pass MCP_AGENT_USE_VISION through to Agent."""
+        mock_agent = MagicMock()
+        mock_result = MagicMock()
+        mock_result.final_result.return_value = "Done"
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("mcp_server_browser_use.server.get_llm", return_value=MagicMock()),
+            patch("mcp_server_browser_use.server.Agent", return_value=mock_agent) as agent_class,
+            patch("mcp_server_browser_use.server.settings.agent.use_vision", False),
+        ):
+            await client.call_tool("run_browser_agent", {"task": "Test task"})
+
+            call_kwargs = agent_class.call_args[1]
+            assert call_kwargs["use_vision"] is False
+
+    @pytest.mark.anyio
+    async def test_run_browser_agent_recovers_result_from_history_when_final_result_missing(self, client: Client):
+        """Should recover explicit result text from agent history before using the generic fallback."""
+        mock_agent = MagicMock()
+        mock_result = MagicMock()
+        mock_result.final_result.return_value = None
+        mock_result.history = [
+            SimpleNamespace(
+                result=[
+                    SimpleNamespace(extracted_content="Recovered answer from page", is_done=True, long_term_memory=None),
+                    SimpleNamespace(extracted_content="", is_done=True, long_term_memory=None),
+                ]
+            )
+        ]
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("mcp_server_browser_use.server.get_llm", return_value=MagicMock()),
+            patch("mcp_server_browser_use.server.Agent", return_value=mock_agent),
+        ):
+            result = await client.call_tool("run_browser_agent", {"task": "Find the answer"})
+
+            assert result.content is not None
+            assert len(result.content) > 0
+            assert "Recovered answer from page" in result.content[0].text
 
     @pytest.mark.anyio
     async def test_run_browser_agent_llm_error(self, client: Client):

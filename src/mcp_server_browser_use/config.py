@@ -63,6 +63,7 @@ def save_config_file(config_data: dict[str, Any]) -> None:
 # For providers with multiple common env var names, use a list (first match wins)
 STANDARD_ENV_VAR_NAMES: dict[str, str | list[str]] = {
     "openai": "OPENAI_API_KEY",
+    "minimax": ["MINIMAX_API_KEY", "OPENAI_API_KEY"],
     "anthropic": "ANTHROPIC_API_KEY",
     "google": ["GEMINI_API_KEY", "GOOGLE_API_KEY"],  # GEMINI_API_KEY takes priority
     "azure_openai": "AZURE_OPENAI_API_KEY",
@@ -79,6 +80,7 @@ NO_KEY_PROVIDERS = frozenset({"ollama", "bedrock"})
 
 ProviderType = Literal[
     "openai",
+    "minimax",
     "anthropic",
     "google",
     "azure_openai",
@@ -203,7 +205,7 @@ class ResearchSettings(BaseSettings):
 
     max_searches: int = Field(default=5, description="Maximum number of searches per research task")
     save_directory: str | None = Field(default=None, description="Directory to save research reports")
-    search_timeout: int = Field(default=120, description="Timeout per search in seconds")
+    search_timeout: int = Field(default=300, description="Timeout per search in seconds")
 
 
 class SkillsSettings(BaseSettings):

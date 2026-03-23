@@ -25,6 +25,28 @@ class TestGetLLM:
             get_llm("openai", "gpt-4", api_key="test-key", base_url="http://localhost:8000")
             mock.assert_called_once_with(model="gpt-4", api_key="test-key", base_url="http://localhost:8000")
 
+    def test_minimax_provider(self):
+        """MiniMax provider should create a ChatOpenAI instance with the MiniMax API base."""
+        with patch("mcp_server_browser_use.providers.SanitizingChatOpenAI") as mock:
+            mock.return_value = MagicMock()
+            get_llm("minimax", "MiniMax-M2.5", api_key="test-key")
+            mock.assert_called_once_with(
+                model="MiniMax-M2.5",
+                api_key="test-key",
+                base_url="https://api.minimax.io/v1",
+            )
+
+    def test_minimax_with_custom_base_url(self):
+        """MiniMax provider should accept a custom OpenAI-compatible base_url."""
+        with patch("mcp_server_browser_use.providers.SanitizingChatOpenAI") as mock:
+            mock.return_value = MagicMock()
+            get_llm("minimax", "MiniMax-M2.5", api_key="test-key", base_url="https://example.invalid/v1")
+            mock.assert_called_once_with(
+                model="MiniMax-M2.5",
+                api_key="test-key",
+                base_url="https://example.invalid/v1",
+            )
+
     def test_anthropic_provider(self):
         """Anthropic provider should create ChatAnthropic instance."""
         with patch("mcp_server_browser_use.providers.ChatAnthropic") as mock:
@@ -159,6 +181,11 @@ class TestErrorHandling:
         """Error message should include the standard env var name."""
         with pytest.raises(LLMProviderError, match="OPENAI_API_KEY"):
             get_llm("openai", "gpt-4")
+
+    def test_minimax_missing_api_key_error_message_includes_env_var(self):
+        """MiniMax missing-key error should point to the MiniMax env var."""
+        with pytest.raises(LLMProviderError, match="MINIMAX_API_KEY"):
+            get_llm("minimax", "MiniMax-M2.5")
 
     def test_unsupported_provider_error(self):
         """Should raise error for unsupported provider."""
