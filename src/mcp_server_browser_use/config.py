@@ -160,7 +160,9 @@ class BrowserSettings(BaseSettings):
     proxy_server: str | None = Field(default=None, description="Proxy server URL (e.g., http://host:8080)")
     proxy_bypass: str | None = Field(default=None, description="Comma-separated hosts to bypass proxy")
     cdp_url: str | None = Field(default=None, description="CDP URL for external browser (e.g., http://localhost:9222)")
+    executable_path: str | None = Field(default=None, description="Path to Chrome/Chromium executable to launch")
     user_data_dir: str | None = Field(default=None, description="Path to Chrome user data directory for persistent profile")
+    profile_directory: str = Field(default="Default", description="Chrome profile directory inside user_data_dir (e.g., Default, Profile 1)")
     chromium_sandbox: bool = Field(default=True)
 
     @model_validator(mode="after")

@@ -208,7 +208,9 @@ def serve() -> FastMCP:
             headless=settings.browser.headless,
             proxy=proxy,
             cdp_url=settings.browser.cdp_url,
+            executable_path=settings.browser.executable_path,
             user_data_dir=settings.browser.user_data_dir,
+            profile_directory=settings.browser.profile_directory,
             chromium_sandbox=settings.browser.chromium_sandbox,
         )
         if settings.browser.cdp_url:
