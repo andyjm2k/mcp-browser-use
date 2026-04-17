@@ -27,6 +27,18 @@ from .skills import SkillStore
 
 def get_state_dir() -> Path:
     """Get the state directory for runtime files (e.g. ~/.local/state/mcp-server-browser-use)."""
+    explicit_state_dir = os.environ.get("CATBOT_BROWSER_USE_STATE_DIR")
+    if explicit_state_dir:
+        path = Path(explicit_state_dir).expanduser()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    runtime_dir = os.environ.get("CATBOT_BROWSER_USE_RUNTIME_DIR")
+    if runtime_dir:
+        path = Path(runtime_dir).expanduser() / APP_NAME
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
     if os.name == "nt":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/state")).expanduser()
     else:
